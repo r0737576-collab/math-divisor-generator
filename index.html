@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<title>Deler Generator - Bookwidgets</title>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background: #f3f4f6;
+    padding: 20px;
+}
+h1 { font-size: 22px; }
+#output {
+    width: 100%;
+    height: 350px;
+    margin-top: 10px;
+    font-family: monospace;
+    padding: 10px;
+}
+button {
+    padding: 10px 16px;
+    margin-top: 10px;
+    font-size: 16px;
+    cursor: pointer;
+}
+button.copy {
+    background: #4caf50;
+    border: none;
+    color: white;
+}
+button.generate {
+    background: #2196f3;
+    border: none;
+    color: white;
+}
+</style>
+</head>
+<body>
+<h1>Deler-generator (Bookwidgets)</h1>
+<p>Genereert 20 getallen tussen 999 999 en 999 999 999 met delers (2,3,4,5,6,8,9,10,12).</p>
+
+<button class="generate" onclick="genereer()">GENEREER</button>
+<button class="copy" onclick="kopieer()">KOPIEER NAAR BOOKWIDGETS</button>
+
+<textarea id="output" placeholder="Klik op GENEREER..."></textarea>
+
+<script>
+function divisorsOf(n) {
+    const divs = [2,3,4,5,6,8,9,10,12];
+    return divs.filter(d => n % d === 0);
+}
+
+function rnd(min,max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function genereer() {
+    let lines = [];
+    for(let i=0; i<20; i++){
+        const n = rnd(999999, 999999999);
+        const d = divisorsOf(n);
+        const line = n + d.map(x => "##" + x).join("");
+        lines.push(line);
+    }
+    document.getElementById("output").value = lines.join("\n");
+}
+
+function kopieer() {
+    const text = document.getElementById("output").value;
+    if (!text.trim()) {
+        alert("Geen gegevens om te kopiëren! Klik eerst op GENEREER.");
+        return;
+    }
+    navigator.clipboard.writeText(text).then(() => {
+        alert("Gekopieerd naar klembord! Je kan het nu plakken in Bookwidgets.");
+    });
+}
+</script>
+
+</body>
+</html>
