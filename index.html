@@ -4,40 +4,28 @@
 <meta charset="UTF-8">
 <title>Deler Generator - Bookwidgets</title>
 <style>
-body {
-    font-family: Arial, sans-serif;
-    background: #f3f4f6;
-    padding: 20px;
-}
-h1 { font-size: 22px; }
-#output {
-    width: 100%;
-    height: 350px;
-    margin-top: 10px;
-    font-family: monospace;
-    padding: 10px;
-}
-button {
-    padding: 10px 16px;
-    margin-top: 10px;
-    font-size: 16px;
-    cursor: pointer;
-}
-.generate { background: #2196f3; color:white; border:none; }
-.copy { background:#4caf50; color:white; border:none; }
-.print { background:#555; color:white; border:none; }
-
-input {
-    padding: 6px;
-    font-size: 16px;
-}
+  :root { --bg:#f3f4f6; --fg:#111; --btn:#2196f3; --btn2:#4caf50; --btn3:#555; }
+  body { font-family: Arial, sans-serif; background: var(--bg); padding: 20px; color: var(--fg); }
+  h1 { font-size: 22px; margin: 0 0 12px 0; }
+  label { font-size: 14px; }
+  #output {
+    width: 100%; height: 350px; margin-top: 10px; font-family: monospace; padding: 10px;
+  }
+  button {
+    padding: 10px 16px; margin-top: 10px; margin-right: 8px; font-size: 16px; cursor: pointer; border: none; color: #fff;
+  }
+  .generate { background: var(--btn); }
+  .copy { background: var(--btn2); }
+  .print { background: var(--btn3); }
+  input { padding: 6px; font-size: 16px; width: 120px; }
+  .hint { font-size: 12px; color: #444; margin-top: 6px; }
 </style>
 </head>
 <body>
 
-<h1>Deler-generator (Bookwidgets + Worksheet)</h1>
+<h1>Deler-generator (Bookwidgets + Worksheet + Sleutel)</h1>
 
-<label>Aantal regels:</label>
+<label for="amount">Aantal regels:</label>
 <input id="amount" type="number" min="1" value="20">
 
 <br><br>
@@ -45,101 +33,154 @@ input {
 <button class="generate" onclick="genereer()">GENEREER</button>
 <button class="copy" onclick="kopieer()">KOPIEER NAAR BOOKWIDGETS</button>
 <button class="print" onclick="printWorksheet()">PRINT WORKSHEET</button>
+<button class="print" onclick="printSleutel()">PRINT VERBETERSLEUTEL</button>
 
 <textarea id="output" placeholder="Klik op GENEREER..."></textarea>
+<p class="hint">
+Formaat per regel: <code>getal##2##3##...</code>. De generator laat <b>maximaal 1</b> getal toe dat door geen van (2,3,4,5,6,8,9,10,12) deelbaar is.
+</p>
 
 <script>
-let lastGenerated = [];
+  const COLS = [2,3,4,5,6,8,9,10,12];
+  let lastGenerated = [];
 
-function divisorsOf(n) {
-    const divs = [2,3,4,5,6,8,9,10,12];
-    return divs.filter(d => n % d === 0);
-}
+  function divisorsOf(n) {
+    return COLS.filter(d => n % d === 0);
+  }
 
-function rnd(min,max) {
+  function rnd(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
-}
+  }
 
-function genereer() {
-    const amount = Number(document.getElementById("amount").value);
-    let lines = [];
+  // Genereert 'amount' getallen met hoogstens 1 getal zonder delers
+  function genereer() {
+    const amount = Math.max(1, Number(document.getElementById("amount").value) || 20);
+    const lines = [];
     lastGenerated = [];
 
-    for(let i=0; i<amount; i++){
-        const n = rnd(999999, 999999999);
-        const d = divisorsOf(n);
-        const line = n + d.map(x => "##" + x).join("");
-        lines.push(line);
-        lastGenerated.push(n);
+    let usedZeroFree = false; // of we al één "zonder delers" hebben toegelaten
+
+    while (lastGenerated.length < amount) {
+      const n = rnd(999999, 999999999);
+      const d = divisorsOf(n);
+
+      if (d.length === 0) {
+        if (usedZeroFree) {
+          // Sla over: we willen max 1 "zonder delers"
+          continue;
+        } else {
+          usedZeroFree = true; // accepteer eerste zonder delers
+        }
+      }
+
+      lastGenerated.push(n);
+      const line = n + (d.length ? d.map(x => "##" + x).join("") : "");
+      lines.push(line);
     }
 
     document.getElementById("output").value = lines.join("\n");
-}
+  }
 
-function kopieer() {
+  function kopieer() {
     const text = document.getElementById("output").value;
     if (!text.trim()) {
-        alert("Geen gegevens om te kopiëren! Klik eerst op GENEREER.");
-        return;
+      alert("Geen gegevens om te kopiëren! Klik eerst op GENEREER.");
+      return;
     }
-    navigator.clipboard.writeText(text).then(() => {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => {
         alert("Gekopieerd! Plakken maar in Bookwidgets.");
-    });
-}
-
-function printWorksheet() {
-    if (lastGenerated.length === 0) {
-        alert("Je moet eerst op GENEREER klikken!");
-        return;
+      }).catch(() => {
+        fallbackCopy(text);
+      });
+    } else {
+      fallbackCopy(text);
     }
+  }
+  function fallbackCopy(text) {
+    const ta = document.getElementById("output");
+    ta.select();
+    document.execCommand("copy");
+    alert("Gekopieerd! (fallback) Plakken maar in Bookwidgets.");
+  }
 
-    const cols = [2,3,4,5,6,8,9,10,12];
-
+  function makeWorksheetHTML(numbers) {
     let html = `
-    <html>
-    <head>
-    <title>Worksheet</title>
-    <style>
-    body { font-family: Arial; }
-    table {
-        border-collapse: collapse;
-        width: 100%;
-        font-size: 16px;
-        margin-top: 20px;
-    }
-    th, td {
-        border: 1px solid black;
-        padding: 6px;
-        text-align: center;
-    }
-    h2 { text-align: center; }
-    </style>
-    </head>
-    <body>
-    <h2>Deelbaarheidsoefeningen</h2>
-    <table>
-        <tr>
-            <th>Getal</th>
-            ${cols.map(c => `<th>/${c}</th>`).join("")}
-        </tr>
+      <html><head><title>Worksheet</title>
+      <style>
+        body { font-family: Arial; color:#000; }
+        h2 { text-align: center; margin: 8px 0 12px; }
+        table { border-collapse: collapse; width: 100%; font-size: 16px; }
+        th, td { border: 1px solid #000; padding: 6px; text-align: center; }
+        th:first-child, td:first-child { text-align: right; padding-right: 10px; }
+        @media print {
+          @page { margin: 14mm; }
+        }
+      </style>
+      </head><body>
+      <h2>Deelbaarheidsoefeningen</h2>
+      <table>
+        <tr><th>Getal</th>${COLS.map(c => `<th>/${c}</th>`).join("")}</tr>
     `;
-
-    lastGenerated.forEach(n => {
-        html += `
-        <tr>
-            <td>${n}</td>
-            ${cols.map(() => `<td>☐</td>`).join("")}
-        </tr>`;
+    numbers.forEach(n => {
+      html += `<tr><td>${n}</td>${COLS.map(()=>`<td>☐</td>`).join("")}</tr>`;
     });
-
     html += `</table></body></html>`;
+    return html;
+  }
 
+  function makeAnswerKeyHTML(numbers) {
+    let html = `
+      <html><head><title>Verbetersleutel</title>
+      <style>
+        body { font-family: Arial; color:#000; }
+        h2 { text-align: center; margin: 8px 0 12px; }
+        table { border-collapse: collapse; width: 100%; font-size: 16px; }
+        th, td { border: 1px solid #000; padding: 6px; text-align: center; }
+        th:first-child, td:first-child { text-align: right; padding-right: 10px; }
+        .tick { font-weight: bold; }
+        @media print {
+          @page { margin: 14mm; }
+        }
+      </style>
+      </head><body>
+      <h2>Verbetersleutel — Deelbaarheid</h2>
+      <table>
+        <tr><th>Getal</th>${COLS.map(c => `<th>/${c}</th>`).join("")}</tr>
+    `;
+    numbers.forEach(n => {
+      const d = divisorsOf(n);
+      html += `<tr><td>${n}</td>${
+        COLS.map(c => `<td>${d.includes(c) ? '<span class="tick">✓</span>' : ''}</td>`).join("")
+      }</tr>`;
+    });
+    html += `</table></body></html>`;
+    return html;
+  }
+
+  function printWorksheet() {
+    if (lastGenerated.length === 0) {
+      alert("Je moet eerst op GENEREER klikken!");
+      return;
+    }
     const w = window.open("");
-    w.document.write(html);
+    w.document.write(makeWorksheetHTML(lastGenerated));
     w.document.close();
     w.focus();
     w.print();
-}
+  }
+
+  function printSleutel() {
+    if (lastGenerated.length === 0) {
+      alert("Je moet eerst op GENEREER klikken!");
+      return;
+    }
+    const w = window.open("");
+    w.document.write(makeAnswerKeyHTML(lastGenerated));
+    w.document.close();
+    w.focus();
+    w.print();
+  }
 </script>
 
 </body>
