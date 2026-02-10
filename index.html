@@ -23,28 +23,34 @@ button {
     font-size: 16px;
     cursor: pointer;
 }
-button.copy {
-    background: #4caf50;
-    border: none;
-    color: white;
-}
-button.generate {
-    background: #2196f3;
-    border: none;
-    color: white;
+.generate { background: #2196f3; color:white; border:none; }
+.copy { background:#4caf50; color:white; border:none; }
+.print { background:#555; color:white; border:none; }
+
+input {
+    padding: 6px;
+    font-size: 16px;
 }
 </style>
 </head>
 <body>
-<h1>Deler-generator (Bookwidgets)</h1>
-<p>Genereert 20 getallen tussen 999 999 en 999 999 999 met delers (2,3,4,5,6,8,9,10,12).</p>
+
+<h1>Deler-generator (Bookwidgets + Worksheet)</h1>
+
+<label>Aantal regels:</label>
+<input id="amount" type="number" min="1" value="20">
+
+<br><br>
 
 <button class="generate" onclick="genereer()">GENEREER</button>
 <button class="copy" onclick="kopieer()">KOPIEER NAAR BOOKWIDGETS</button>
+<button class="print" onclick="printWorksheet()">PRINT WORKSHEET</button>
 
 <textarea id="output" placeholder="Klik op GENEREER..."></textarea>
 
 <script>
+let lastGenerated = [];
+
 function divisorsOf(n) {
     const divs = [2,3,4,5,6,8,9,10,12];
     return divs.filter(d => n % d === 0);
@@ -55,13 +61,18 @@ function rnd(min,max) {
 }
 
 function genereer() {
+    const amount = Number(document.getElementById("amount").value);
     let lines = [];
-    for(let i=0; i<20; i++){
+    lastGenerated = [];
+
+    for(let i=0; i<amount; i++){
         const n = rnd(999999, 999999999);
         const d = divisorsOf(n);
         const line = n + d.map(x => "##" + x).join("");
         lines.push(line);
+        lastGenerated.push(n);
     }
+
     document.getElementById("output").value = lines.join("\n");
 }
 
@@ -72,8 +83,62 @@ function kopieer() {
         return;
     }
     navigator.clipboard.writeText(text).then(() => {
-        alert("Gekopieerd naar klembord! Je kan het nu plakken in Bookwidgets.");
+        alert("Gekopieerd! Plakken maar in Bookwidgets.");
     });
+}
+
+function printWorksheet() {
+    if (lastGenerated.length === 0) {
+        alert("Je moet eerst op GENEREER klikken!");
+        return;
+    }
+
+    const cols = [2,3,4,5,6,8,9,10,12];
+
+    let html = `
+    <html>
+    <head>
+    <title>Worksheet</title>
+    <style>
+    body { font-family: Arial; }
+    table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 16px;
+        margin-top: 20px;
+    }
+    th, td {
+        border: 1px solid black;
+        padding: 6px;
+        text-align: center;
+    }
+    h2 { text-align: center; }
+    </style>
+    </head>
+    <body>
+    <h2>Deelbaarheidsoefeningen</h2>
+    <table>
+        <tr>
+            <th>Getal</th>
+            ${cols.map(c => `<th>/${c}</th>`).join("")}
+        </tr>
+    `;
+
+    lastGenerated.forEach(n => {
+        html += `
+        <tr>
+            <td>${n}</td>
+            ${cols.map(() => `<td>☐</td>`).join("")}
+        </tr>`;
+    });
+
+    html += `</table></body></html>`;
+
+    const w = window.open("");
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    w.print();
 }
 </script>
 
